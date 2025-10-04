@@ -215,9 +215,9 @@ def main():
         success += 1
         print(f"✅ {len(candles)}개")
 
-        # 5초 대기 (rate limit 회피)
+        # 10초 대기 (rate limit 회피 - 3차 4차 재시도용)
         if i < len(failed_tickers):
-            time.sleep(5)
+            time.sleep(10)
 
     # 5. 기존 데이터와 병합
     existing_data['data'].extend(new_data)

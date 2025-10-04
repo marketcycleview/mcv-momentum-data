@@ -32,6 +32,14 @@ jobs:
         run: |
           python .github/scripts/retry_failed_us.py
 
+      - name: 🔄 Retry failed tickers (3차 순차 처리, 10초 대기)
+        run: |
+          python .github/scripts/retry_failed_us.py
+
+      - name: 🔄 Retry failed tickers (4차 순차 처리, 10초 대기)
+        run: |
+          python .github/scripts/retry_failed_us.py
+
       - name: 📊 Check output file
         run: |
           ls -lh src/data/momentum/us/
