@@ -1,0 +1,67 @@
+name: 🔄 Rebuild Korean Stocks History (2022-01-01~)
+
+on:
+  workflow_dispatch:  # 수동 실행 전용
+
+jobs:
+  rebuild-kr-stocks-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3시간 (2764개 종목)
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          pip install yfinance requests
+
+      - name: 🚀 Rebuild Korean Stocks History
+        run: |
+          python .github/scripts/rebuild_kr_stocks_history.py
+
+      - name: 📊 Check File Size
+        run: |
+          echo "📁 Generated files:"
+          ls -lh src/data/momentum/kr/
+          echo ""
+          echo "📈 File details:"
+          du -h src/data/momentum/kr/*
+
+      - name: 📤 Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: momentum-data-v1
+          name: "Korean Stocks Momentum Data"
+          body: |
+            🇰🇷 **한국 주식 모멘텀 데이터**
+
+            - **기간**: 2022-01-01 ~ 현재
+            - **종목 수**: 2764개 (KOSPI 967 + KOSDAQ 1797)
+            - **데이터 소스**: Yahoo Finance
+            - **생성 시각**: ${{ github.event.repository.updated_at }}
+
+            ## 📥 다운로드
+            - `kr_stocks_historical_data.json` - 전체 히스토리 데이터
+            - `kr_stocks_tickers.json` - 티커 메타데이터
+
+            ## 🔄 자동 업데이트
+            매일 01:00 UTC (한국시간 10:00) 자동 업데이트됩니다.
+          files: |
+            src/data/momentum/kr/kr_stocks_historical_data.json
+            src/data/momentum/kr/kr_stocks_tickers.json
+          prerelease: false
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ✅ Complete
+        run: |
+          echo "✅ 한국 주식 히스토리 재구축 완료!"
+          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/momentum-data-v1"
