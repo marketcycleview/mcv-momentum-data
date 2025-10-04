@@ -98,11 +98,11 @@ def load_local_tickers():
 
     return list(unique_tickers.values())
 
-# ✅ Yahoo Finance에서 히스토리 가져오기 (병렬 처리용)
-def fetch_yahoo_history(ticker, start_date, end_date):
+# ✅ Yahoo Finance에서 히스토리 가져오기 (병렬 처리용, 재시도 로직 포함)
+def fetch_yahoo_history(ticker, start_date, end_date, retry_count=0):
     """
     Yahoo Finance에서 OHLCV 데이터 가져오기
-    병렬 처리시 sleep 제거 (rate limit은 ThreadPool 크기로 제어)
+    실패시 최대 2번 재시도 (3초 간격)
     """
     try:
         # yfinance가 자동으로 세션 관리 (curl_cffi 사용)
@@ -110,6 +110,10 @@ def fetch_yahoo_history(ticker, start_date, end_date):
         hist = yf_ticker.history(start=start_date, end=end_date)
 
         if hist.empty:
+            # 재시도 (rate limit 회피)
+            if retry_count < 2:
+                time.sleep(3)
+                return fetch_yahoo_history(ticker, start_date, end_date, retry_count + 1)
             return []
 
         candles = []
@@ -133,7 +137,11 @@ def fetch_yahoo_history(ticker, start_date, end_date):
         return candles
 
     except Exception as e:
-        return []  # 조용히 실패 (메인 스레드에서 로깅)
+        # 재시도 (rate limit 회피)
+        if retry_count < 2:
+            time.sleep(3)
+            return fetch_yahoo_history(ticker, start_date, end_date, retry_count + 1)
+        return []
 
 # ✅ 단일 티커 처리 함수 (병렬화용)
 def process_single_ticker(t, start_date, end_date, index, total):
@@ -241,15 +249,15 @@ def main():
     # 1. 로컬 티커 리스트 가져오기
     tickers = load_local_tickers()
     print(f"📋 총 {len(tickers)}개 티커 처리 중...\n")
-    print(f"⚡ 병렬 처리: 10개 스레드 (예상 시간: 2-3시간)\n")
+    print(f"⚡ 병렬 처리: 5개 스레드 + 재시도 로직 (예상 시간: 3-4시간)\n")
 
     all_data = []
     all_tickers = []
     failed = 0
     print_lock = Lock()
 
-    # 병렬 처리 (10개 스레드 - Yahoo Finance rate limit 회피)
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    # 병렬 처리 (5개 스레드 - Yahoo Finance rate limit 회피)
+    with ThreadPoolExecutor(max_workers=5) as executor:
         # 모든 작업을 제출
         future_to_ticker = {
             executor.submit(process_single_ticker, t, start_date, end_date, i+1, len(tickers)): t
