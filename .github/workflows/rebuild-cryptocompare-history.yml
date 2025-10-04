@@ -40,21 +40,19 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: crypto-data-v1
-          name: "CryptoCompare Momentum Data"
+          name: "CryptoCompare Historical Data v1.0.0"
           body: |
-            🪙 **크립토컴페어 모멘텀 데이터**
+            🪙 **크립토컴페어 히스토리 데이터 (2022-01-01 ~ 현재)**
 
-            - **기간**: 2022-01-01 ~ 현재
-            - **코인 수**: 1000개 (상위 시가총액)
-            - **데이터 소스**: CryptoCompare API
-            - **생성 시각**: ${{ github.event.repository.updated_at }}
+            **Generated:** ${{ github.run_id }}
+            **Total Tickers:** ~1000개
+            **Success:** ~1000개
 
-            ## 📥 다운로드
-            - `cryptocompare_historical_data.json` - 전체 히스토리 데이터
-            - `cryptocompare_tickers.json` - 티커 메타데이터
-
-            ## 🔄 자동 업데이트
-            매일 02:00 UTC (한국시간 11:00) 자동 업데이트됩니다.
+            ## 다운로드 URL
+            ```
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/crypto-data-v1/cryptocompare_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/crypto-data-v1/cryptocompare_tickers.json
+            ```
           files: |
             src/data/momentum/cryptocompare/cryptocompare_historical_data.json
             src/data/momentum/cryptocompare/cryptocompare_tickers.json
