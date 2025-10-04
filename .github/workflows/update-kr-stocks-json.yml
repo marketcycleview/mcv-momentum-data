@@ -5,6 +5,9 @@ on:
     - cron: '0 1 * * *'  # 매일 01:00 UTC (한국시간 10:00)
   workflow_dispatch:  # 수동 실행 가능
 
+permissions:
+  contents: write
+
 jobs:
   update-kr-stocks:
     runs-on: ubuntu-latest

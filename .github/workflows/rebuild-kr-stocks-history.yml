@@ -3,6 +3,9 @@ name: 🔄 한국주식 전체 재구축 (2022-01-01~)
 on:
   workflow_dispatch:  # 수동 실행 전용
 
+permissions:
+  contents: write
+
 jobs:
   rebuild-kr-stocks-history:
     runs-on: ubuntu-latest
