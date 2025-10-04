@@ -39,7 +39,7 @@ jobs:
       - name: 📤 Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: momentum-data-v1
+          tag_name: kr-stocks-v1
           name: "Korean Stocks Momentum Data"
           body: |
             🇰🇷 **한국 주식 모멘텀 데이터**
@@ -66,4 +66,4 @@ jobs:
       - name: ✅ Complete
         run: |
           echo "✅ 한국 주식 히스토리 재구축 완료!"
-          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/momentum-data-v1"
+          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/kr-stocks-v1"
