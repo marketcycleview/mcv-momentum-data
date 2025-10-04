@@ -37,28 +37,21 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: upbit-data-v1
-          name: Crypto & Stock Historical Data v1.0.0
+          name: Upbit Historical Data v1.0.0
           body: |
-            📦 **Upbit & US Stock Historical Data**
+            📦 **Upbit 코인 히스토리 데이터 (2022-01-01 ~ 현재)**
 
             **Generated:** ${{ github.run_id }}
-            **Date:** $(date +%Y-%m-%d)
+            **Total Tickers:** ~1000개
+            **Success:** ~1000개
 
             ## 다운로드 URL
-
-            ### Upbit (업비트 코인)
             ```
             https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/upbit_historical_data.json
             https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/upbit_tickers.json
             ```
 
-            ### US Stock (미국 주식/ETF)
-            ```
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/us_historical_data.json
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/us_tickers.json
-            ```
-
-            📦 mcv-nextjs 프로젝트의 `src/data/momentum/` 폴더에 배치하세요.
+            📦 mcv-nextjs 프로젝트의 `src/data/momentum/upbit/` 폴더에 배치하세요.
           files: |
             src/data/momentum/upbit/upbit_historical_data.json
             src/data/momentum/upbit/upbit_tickers.json
