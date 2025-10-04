@@ -258,6 +258,7 @@ def main():
     save_tickers(all_tickers)
 
     print(f"\n✅ 재구축 완료!")
+    failed = len(markets) - len(all_data)
     print(f"   - 성공: {len(all_data)}개")
     print(f"   - 실패: {failed}개")
     print(f"   - 총 레코드: {json_data['total_records']}")
