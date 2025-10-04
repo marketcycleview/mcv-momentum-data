@@ -24,9 +24,17 @@ jobs:
         run: |
           pip install yfinance requests
 
-      - name: 🚀 Rebuild Korean Stocks History
+      - name: 🚀 Rebuild Korean Stocks History (1차 병렬 처리)
         run: |
           python .github/scripts/rebuild_kr_stocks_history.py
+
+      - name: 🔄 Retry failed tickers (2차 순차 처리)
+        run: |
+          python .github/scripts/retry_failed_kr.py
+
+      - name: 🔄 Retry failed tickers (3차 순차 처리, 10초 대기)
+        run: |
+          python .github/scripts/retry_failed_kr.py
 
       - name: 📊 Check File Size
         run: |
