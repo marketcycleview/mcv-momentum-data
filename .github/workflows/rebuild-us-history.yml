@@ -24,9 +24,13 @@ jobs:
         run: |
           pip install yfinance requests pandas
 
-      - name: 🚀 Rebuild US historical data
+      - name: 🚀 Rebuild US historical data (1차 병렬 처리)
         run: |
           python .github/scripts/rebuild_us_history.py
+
+      - name: 🔄 Retry failed tickers (2차 순차 처리)
+        run: |
+          python .github/scripts/retry_failed_us.py
 
       - name: 📊 Check output file
         run: |
