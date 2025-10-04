@@ -1,0 +1,167 @@
+[
+  {
+    "ticker": "BTC",
+    "common_ticker": "BTC",
+    "name": "Grayscale Bitcoin Mini Trust (B",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "YAHOO",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "BTC-USD-YAHOO"
+  },
+  {
+    "ticker": "ETH",
+    "common_ticker": "ETH",
+    "name": "Grayscale Ethereum Mini Trust (",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "ETH-USD-YAHOO"
+  },
+  {
+    "ticker": "USD",
+    "common_ticker": "USD",
+    "name": "ProShares Ultra Semiconductors",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "USD-USD-YAHOO"
+  },
+  {
+    "ticker": "SPY",
+    "common_ticker": "SPY",
+    "name": "SPDR S&P 500",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "SPY-USD-YAHOO"
+  },
+  {
+    "ticker": "VTI",
+    "common_ticker": "VTI",
+    "name": "Vanguard Total Stock Market ETF",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "VTI-USD-YAHOO"
+  },
+  {
+    "ticker": "QQQ",
+    "common_ticker": "QQQ",
+    "name": "Invesco QQQ Trust, Series 1",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "NGM",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "QQQ-USD-YAHOO"
+  },
+  {
+    "ticker": "NVD",
+    "common_ticker": "NVD",
+    "name": "GraniteShares 2x Short NVDA Dai",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "NGM",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "NVD-USD-YAHOO"
+  },
+  {
+    "ticker": "GLD",
+    "common_ticker": "GLD",
+    "name": "SPDR Gold Trust",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "GLD-USD-YAHOO"
+  },
+  {
+    "ticker": "304770.KS",
+    "common_ticker": "304770KS",
+    "name": "HANARO KOSDAQ150",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "KSC",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "304770.KS-USD-YAHOO"
+  },
+  {
+    "ticker": "TLT",
+    "common_ticker": "TLT",
+    "name": "iShares 20+ Year Treasury Bond ",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "NGM",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "TLT-USD-YAHOO"
+  },
+  {
+    "ticker": "ARKK",
+    "common_ticker": "ARKK",
+    "name": "ARK Innovation ETF",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "BTS",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "ARKK-USD-YAHOO"
+  },
+  {
+    "ticker": "00693U.TW",
+    "common_ticker": "00693UTW",
+    "name": "PARADIGM ASSET MGMT CO LTD PARA",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "TAI",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "00693U.TW-USD-YAHOO"
+  },
+  {
+    "ticker": "FNGB",
+    "common_ticker": "FNGB",
+    "name": "Bank Of Montreal MicroSectors F",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "FNGB-USD-YAHOO"
+  },
+  {
+    "ticker": "FNGA",
+    "common_ticker": "FNGA",
+    "name": "MicroSectors FANG  Index 3X Lev",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "PCX",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "FNGA-USD-YAHOO"
+  },
+  {
+    "ticker": "JPY",
+    "common_ticker": "JPY",
+    "name": "Lazard Japanese Equity ETF",
+    "ko_name": null,
+    "type": "ETF",
+    "exchange": "NGM",
+    "currency": "USD",
+    "source": "YAHOO",
+    "mcv_id": "JPY-USD-YAHOO"
+  }
+]
