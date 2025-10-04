@@ -2,12 +2,15 @@
 """
 한국 주식 전체 히스토리 재구축 (2022-01-01부터)
 Yahoo Finance에서 데이터 가져와서 JSON 생성
+병렬 처리로 속도 최적화
 """
 
 import os
 import json
 import time
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 import yfinance as yf
 
 # 경로 설정
@@ -81,21 +84,22 @@ def load_local_tickers():
 
     return list(unique_tickers.values())
 
-# ✅ Yahoo Finance에서 히스토리 가져오기
-def fetch_yahoo_history(ticker, start_date, end_date):
+# ✅ Yahoo Finance에서 히스토리 가져오기 (병렬 처리용, 재시도 로직 포함)
+def fetch_yahoo_history(ticker, start_date, end_date, retry_count=0):
     """
     Yahoo Finance에서 OHLCV 데이터 가져오기
+    실패시 최대 2번 재시도 (3초 간격)
     """
-    import random
     try:
-        # Random sleep to avoid rate limiting (3-5초)
-        time.sleep(random.uniform(3.0, 5.0))
-
         # yfinance가 자동으로 세션 관리 (curl_cffi 사용)
         yf_ticker = yf.Ticker(ticker)
         hist = yf_ticker.history(start=start_date, end=end_date)
 
         if hist.empty:
+            # 재시도 (rate limit 회피)
+            if retry_count < 2:
+                time.sleep(3)
+                return fetch_yahoo_history(ticker, start_date, end_date, retry_count + 1)
             return []
 
         candles = []
@@ -119,8 +123,90 @@ def fetch_yahoo_history(ticker, start_date, end_date):
         return candles
 
     except Exception as e:
-        print(f"❌ {ticker} 에러: {e}")
+        # 재시도 (rate limit 회피)
+        if retry_count < 2:
+            time.sleep(3)
+            return fetch_yahoo_history(ticker, start_date, end_date, retry_count + 1)
         return []
+
+# ✅ 단일 티커 처리 함수 (병렬화용)
+def process_single_ticker(t, start_date, end_date, index, total):
+    """단일 티커 처리 (병렬 실행)"""
+    ticker = t.get('ticker')
+    mcv_id = t.get('mcv_id')
+    ko_name = t.get('ko_name')
+    category = t.get('category', 'unknown')
+
+    if not ticker or not mcv_id:
+        return None, f"⚠️ [{index}/{total}] 잘못된 티커 데이터"
+
+    try:
+        # Yahoo Finance에서 데이터 가져오기
+        candles = fetch_yahoo_history(ticker, start_date, end_date)
+
+        if len(candles) == 0:
+            return None, f"❌ [{index}/{total}] {ticker} ({category}) 데이터 없음"
+
+        # 최근 250일 데이터로 지표 계산
+        recent_history = candles[-250:]
+        closes = [h['close'] for h in recent_history if h['close'] is not None]
+        volumes = [h['volume'] for h in recent_history if h['volume'] is not None]
+
+        if len(closes) < 14:
+            return None, f"⚠️ [{index}/{total}] {ticker} 데이터 부족"
+
+        # RSI 계산
+        rsi = calculate_rsi(closes)
+
+        # EMA 계산
+        ema20 = calculate_ema(closes, 20) if len(closes) >= 20 else None
+        ema50 = calculate_ema(closes, 50) if len(closes) >= 50 else None
+        ema120 = calculate_ema(closes, 120) if len(closes) >= 120 else None
+        ema200 = calculate_ema(closes, 200) if len(closes) >= 200 else None
+
+        current_price = closes[-1]
+        ema20_diff = round(((current_price - ema20) / ema20) * 100, 2) if ema20 else None
+        ema50_diff = round(((current_price - ema50) / ema50) * 100, 2) if ema50 else None
+        ema120_diff = round(((current_price - ema120) / ema120) * 100, 2) if ema120 else None
+        ema200_diff = round(((current_price - ema200) / ema200) * 100, 2) if ema200 else None
+
+        # 거래량 비율
+        if len(volumes) > 0:
+            vol_max_90d = max(volumes[-90:]) if len(volumes) >= 90 else max(volumes)
+            vol_ratio_90d = round(volumes[-1] / vol_max_90d, 3) if vol_max_90d else None
+            vol_max_alltime = max(volumes)
+            vol_ratio_alltime = round(volumes[-1] / vol_max_alltime, 3) if vol_max_alltime else None
+        else:
+            vol_ratio_90d = None
+            vol_ratio_alltime = None
+
+        # 최신 레코드에 지표 업데이트
+        candles[-1]['rsi'] = rsi
+        candles[-1]['ema20_diff'] = ema20_diff
+        candles[-1]['ema50_diff'] = ema50_diff
+        candles[-1]['ema120_diff'] = ema120_diff
+        candles[-1]['ema200_diff'] = ema200_diff
+        candles[-1]['volume_ratio_90d'] = vol_ratio_90d
+        candles[-1]['volume_ratio_alltime'] = vol_ratio_alltime
+
+        return {
+            'ticker_data': {
+                'mcv_id': mcv_id,
+                'ticker': ticker,
+                'ko_name': ko_name,
+                'category': category,
+                'history': candles
+            },
+            'ticker_info': {
+                'mcv_id': mcv_id,
+                'ticker': ticker,
+                'ko_name': ko_name,
+                'category': category
+            }
+        }, f"✅ [{index}/{total}] {ticker} ({category}) {len(candles)}개"
+
+    except Exception as e:
+        return None, f"❌ [{index}/{total}] {ticker} 에러: {e}"
 
 # ✅ 티커 목록 저장
 def save_tickers(tickers):
@@ -137,9 +223,9 @@ def save_json_data(data):
     with open(JSON_FILE_PATH, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ✅ 메인 실행
+# ✅ 메인 실행 (병렬 처리)
 def main():
-    print("🚀 한국 주식 전체 히스토리 재구축 시작...")
+    print("🚀 한국 주식 전체 히스토리 재구축 시작 (병렬 처리)")
 
     start_date = "2022-01-01"
     end_date = datetime.now().strftime("%Y-%m-%d")
@@ -149,110 +235,37 @@ def main():
     # 1. 로컬 티커 리스트 가져오기
     tickers = load_local_tickers()
     print(f"📋 총 {len(tickers)}개 티커 처리 중...\n")
+    print(f"⚡ 병렬 처리: 5개 스레드 + 재시도 로직 (예상 시간: 1-2시간)\n")
 
     all_data = []
     all_tickers = []
-    processed = 0
     failed = 0
+    print_lock = Lock()
 
-    for t in tickers:
-        processed += 1
-        ticker = t.get('ticker')
-        mcv_id = t.get('mcv_id')
-        ko_name = t.get('ko_name')
-        category = t.get('category', 'unknown')
+    # 병렬 처리 (5개 스레드 - Yahoo Finance rate limit 회피)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        # 모든 작업을 제출
+        future_to_ticker = {
+            executor.submit(process_single_ticker, t, start_date, end_date, i+1, len(tickers)): t
+            for i, t in enumerate(tickers)
+        }
 
-        if not ticker or not mcv_id:
-            print(f"⚠️ [{processed}/{len(tickers)}] 잘못된 티커 데이터: {t}")
-            failed += 1
-            continue
+        # 완료된 작업 처리
+        for future in as_completed(future_to_ticker):
+            result, log_msg = future.result()
 
-        print(f"   [{processed}/{len(tickers)}] {ticker} ({category}) 처리 중...", end=" ", flush=True)
+            with print_lock:
+                print(log_msg)
 
-        try:
-            # Yahoo Finance에서 데이터 가져오기
-            candles = fetch_yahoo_history(ticker, start_date, end_date)
+                if result:
+                    all_data.append(result['ticker_data'])
+                    all_tickers.append(result['ticker_info'])
+                else:
+                    failed += 1
 
-            if len(candles) == 0:
-                print("❌ 데이터 없음")
-                failed += 1
-                continue
-
-            print(f"✅ {len(candles)}개")
-
-            # 히스토리 구축
-            history = candles
-
-            # 최근 250일 데이터로 지표 계산
-            recent_history = history[-250:]
-            closes = [h['close'] for h in recent_history if h['close'] is not None]
-            volumes = [h['volume'] for h in recent_history if h['volume'] is not None]
-
-            if len(closes) < 14:
-                print(f"⚠️ {ticker} 데이터 부족 (최근 {len(closes)}일)")
-                failed += 1
-                continue
-
-            # RSI 계산
-            rsi = calculate_rsi(closes)
-
-            # EMA 계산
-            ema20 = calculate_ema(closes, 20) if len(closes) >= 20 else None
-            ema50 = calculate_ema(closes, 50) if len(closes) >= 50 else None
-            ema120 = calculate_ema(closes, 120) if len(closes) >= 120 else None
-            ema200 = calculate_ema(closes, 200) if len(closes) >= 200 else None
-
-            current_price = closes[-1]
-            ema20_diff = round(((current_price - ema20) / ema20) * 100, 2) if ema20 else None
-            ema50_diff = round(((current_price - ema50) / ema50) * 100, 2) if ema50 else None
-            ema120_diff = round(((current_price - ema120) / ema120) * 100, 2) if ema120 else None
-            ema200_diff = round(((current_price - ema200) / ema200) * 100, 2) if ema200 else None
-
-            # 거래량 비율
-            if len(volumes) > 0:
-                vol_max_90d = max(volumes[-90:]) if len(volumes) >= 90 else max(volumes)
-                vol_ratio_90d = round(volumes[-1] / vol_max_90d, 3) if vol_max_90d else None
-                vol_max_alltime = max(volumes)
-                vol_ratio_alltime = round(volumes[-1] / vol_max_alltime, 3) if vol_max_alltime else None
-            else:
-                vol_ratio_90d = None
-                vol_ratio_alltime = None
-
-            # 최신 레코드에 지표 업데이트
-            history[-1]['rsi'] = rsi
-            history[-1]['ema20_diff'] = ema20_diff
-            history[-1]['ema50_diff'] = ema50_diff
-            history[-1]['ema120_diff'] = ema120_diff
-            history[-1]['ema200_diff'] = ema200_diff
-            history[-1]['volume_ratio_90d'] = vol_ratio_90d
-            history[-1]['volume_ratio_alltime'] = vol_ratio_alltime
-
-            all_data.append({
-                'mcv_id': mcv_id,
-                'ticker': ticker,
-                'ko_name': ko_name,
-                'category': category,
-                'history': history
-            })
-
-            all_tickers.append({
-                'mcv_id': mcv_id,
-                'ticker': ticker,
-                'ko_name': ko_name,
-                'category': category
-            })
-
-            # 진행 상황 표시 (50개마다)
-            if processed % 50 == 0:
-                print(f"   📊 진행: {processed}/{len(tickers)} ({processed*100//len(tickers)}%)")
-
-            time.sleep(2.0)
-
-        except Exception as e:
-            print(f"❌ {ticker} 에러: {e}")
-            failed += 1
-            time.sleep(5.0)
-            continue
+                # 진행 상황 (50개마다)
+                if len(all_data) % 50 == 0:
+                    print(f"   📊 진행: {len(all_data) + failed}/{len(tickers)} ({(len(all_data) + failed)*100//len(tickers)}%)")
 
     # JSON 저장
     json_data = {
