@@ -1,4 +1,4 @@
-name: 📊 Update Korean Stocks Data (Daily)
+name: 📊 한국주식 일일 업데이트
 
 on:
   schedule:

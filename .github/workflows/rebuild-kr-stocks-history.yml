@@ -1,4 +1,4 @@
-name: 🔄 Rebuild Korean Stocks History (2022-01-01~)
+name: 🔄 한국주식 전체 재구축 (2022-01-01~)
 
 on:
   workflow_dispatch:  # 수동 실행 전용
