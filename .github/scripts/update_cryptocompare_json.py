@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-코인게코 일일 업데이트 (증분 업데이트)
+CryptoCompare 일일 업데이트 (증분 업데이트)
 - 기존 코인: 어제 데이터만 추가
-- 신규 코인: 최근 365일 전체 히스토리 다운로드
+- 신규 코인: 2022-01-01부터 전체 히스토리 다운로드
 """
 
 import os
@@ -12,14 +12,11 @@ from datetime import datetime, timedelta
 import requests
 
 # 경로 설정
-JSON_FILE_PATH = "src/data/momentum/coingecko/coingecko_historical_data.json"
-TICKERS_FILE_PATH = "src/data/momentum/coingecko/coingecko_tickers.json"
+JSON_FILE_PATH = "src/data/momentum/cryptocompare/cryptocompare_historical_data.json"
+TICKERS_FILE_PATH = "src/data/momentum/cryptocompare/cryptocompare_tickers.json"
 
-# 로컬 티커 파일 경로
-TICKER_FILE = "src/data/tickers/crypto/coingecko_with_mcv_id.json"
-
-# CoinGecko API
-COINGECKO_API_BASE = "https://api.coingecko.com/api/v3"
+# CryptoCompare API
+CRYPTOCOMPARE_API_BASE = "https://min-api.cryptocompare.com"
 
 # 신규 코인 최대 처리 개수
 MAX_NEW_COINS = 5
@@ -61,60 +58,66 @@ def calculate_ema(prices, period):
         ema = price * k + ema * (1 - k)
     return round(ema, 8)
 
-# ✅ CoinGecko API에서 최신 상위 1000개 코인 가져오기
+# ✅ CryptoCompare API에서 최신 상위 1000개 코인 가져오기
 def fetch_top_coins():
-    """CoinGecko API로 시가총액 상위 1000개 코인 목록 가져오기"""
-    print("📡 CoinGecko API로 최신 상위 1000개 코인 목록 가져오는 중...")
+    """CryptoCompare API로 시가총액 상위 1000개 코인 목록 가져오기"""
+    print("📡 CryptoCompare API로 최신 상위 1000개 코인 목록 가져오는 중...")
 
     all_coins = []
-    for page in range(1, 5):  # 250 * 4 = 1000개
-        print(f"   페이지 {page}/4 수집 중...", end=" ", flush=True)
+    for page in range(10):  # 100 * 10 = 1000개
+        print(f"   페이지 {page + 1}/10 수집 중...", end=" ", flush=True)
 
         params = {
-            "vs_currency": "usd",
-            "order": "market_cap_desc",
-            "per_page": 250,
-            "page": page,
-            "sparkline": False
+            "limit": 100,
+            "tsym": "USD",
+            "page": page
         }
 
         try:
-            response = requests.get(f"{COINGECKO_API_BASE}/coins/markets", params=params)
+            response = requests.get(f"{CRYPTOCOMPARE_API_BASE}/data/top/mktcapfull", params=params)
 
             if response.status_code == 429:
                 print("⚠️ Rate limit - 60초 대기...")
                 time.sleep(60)
-                response = requests.get(f"{COINGECKO_API_BASE}/coins/markets", params=params)
+                response = requests.get(f"{CRYPTOCOMPARE_API_BASE}/data/top/mktcapfull", params=params)
 
             response.raise_for_status()
-            coins = response.json()
+            data = response.json()
+
+            if data.get("Response") == "Error":
+                print(f"❌ API 에러: {data.get('Message')}")
+                break
+
+            coins = data.get("Data", [])
             all_coins.extend(coins)
             print(f"✅ {len(coins)}개")
 
-            if page < 4:
-                time.sleep(2)  # Rate limit 대응
+            if page < 9:
+                time.sleep(1)  # Rate limit 대응
 
         except Exception as e:
-            print(f"❌ 페이지 {page} 수집 실패: {e}")
+            print(f"❌ 페이지 {page + 1} 수집 실패: {e}")
             continue
 
     # 티커 데이터 정규화
     tickers = []
-    for coin in all_coins:
-        ticker = coin["symbol"].upper()
-        name = coin["name"]
-        coingecko_id = coin["id"]
-        common_ticker = f"{ticker}-USD"
-        mcv_id = f"{common_ticker}-COINGECKO"
+    for coin_data in all_coins:
+        coin_info = coin_data.get("CoinInfo", {})
+        symbol = coin_info.get("Name", "")
+        name = coin_info.get("FullName", "")
+
+        raw_data = coin_data.get("RAW", {}).get("USD", {})
+
+        common_ticker = f"{symbol}-USD"
+        mcv_id = f"{common_ticker}-CRYPTOCOMPARE"
 
         tickers.append({
-            "ticker": ticker,
+            "ticker": symbol,
             "name": name,
-            "coingecko_id": coingecko_id,
             "common_ticker": common_ticker,
             "mcv_id": mcv_id,
-            "marketcap": coin.get("market_cap"),
-            "rank": coin.get("market_cap_rank")
+            "marketcap": raw_data.get("MKTCAP"),
+            "rank": len(tickers) + 1
         })
 
     print(f"✅ 총 {len(tickers)}개 코인 목록 수집 완료\n")
@@ -129,16 +132,17 @@ def load_existing_data():
     with open(JSON_FILE_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-# ✅ CoinGecko API에서 최근 데이터 가져오기
-def fetch_coingecko_recent(coingecko_id, days=2):
+# ✅ CryptoCompare API에서 최근 데이터 가져오기
+def fetch_cryptocompare_recent(symbol, days=2):
     """최근 며칠 데이터 가져오기"""
     try:
-        url = f"{COINGECKO_API_BASE}/coins/{coingecko_id}/ohlc"
         params = {
-            'vs_currency': 'usd',
-            'days': days
+            "fsym": symbol,
+            "tsym": "USD",
+            "limit": days
         }
 
+        url = f"{CRYPTOCOMPARE_API_BASE}/data/v2/histoday"
         response = requests.get(url, params=params)
 
         if response.status_code == 429:
@@ -149,21 +153,25 @@ def fetch_coingecko_recent(coingecko_id, days=2):
         response.raise_for_status()
         data = response.json()
 
-        if not data:
+        if data.get("Response") == "Error":
+            return []
+
+        history_data = data.get("Data", {}).get("Data", [])
+
+        if not history_data:
             return []
 
         candles = []
-        for ohlc in data:
-            timestamp = ohlc[0]
-            date = datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d')
+        for item in history_data:
+            date = datetime.fromtimestamp(item["time"]).strftime('%Y-%m-%d')
 
             candles.append({
                 'date': date,
-                'open': round(float(ohlc[1]), 8) if ohlc[1] else None,
-                'high': round(float(ohlc[2]), 8) if ohlc[2] else None,
-                'low': round(float(ohlc[3]), 8) if ohlc[3] else None,
-                'close': round(float(ohlc[4]), 8) if ohlc[4] else None,
-                'volume': None,
+                'open': round(float(item['open']), 8) if item['open'] else None,
+                'high': round(float(item['high']), 8) if item['high'] else None,
+                'low': round(float(item['low']), 8) if item['low'] else None,
+                'close': round(float(item['close']), 8) if item['close'] else None,
+                'volume': int(item['volumeto']) if item.get('volumeto') else 0,
                 'rsi': None,
                 'ema200_diff': None,
                 'ema120_diff': None,
@@ -176,22 +184,77 @@ def fetch_coingecko_recent(coingecko_id, days=2):
         return candles
 
     except Exception as e:
-        print(f"❌ {coingecko_id} 에러: {e}")
+        print(f"❌ {symbol} 에러: {e}")
         return []
 
 # ✅ 전체 히스토리 가져오기 (신규 코인용)
-def fetch_coingecko_full_history(coingecko_id, days=365):
-    """최근 365일 전체 히스토리 가져오기"""
-    return fetch_coingecko_recent(coingecko_id, days)
+def fetch_cryptocompare_full_history(symbol, start_date="2022-01-01"):
+    """2022-01-01부터 전체 히스토리 가져오기"""
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        today = datetime.now()
+        days = (today - start).days
+
+        params = {
+            "fsym": symbol,
+            "tsym": "USD",
+            "limit": min(days, 2000),
+            "toTs": int(today.timestamp())
+        }
+
+        url = f"{CRYPTOCOMPARE_API_BASE}/data/v2/histoday"
+        response = requests.get(url, params=params)
+
+        if response.status_code == 429:
+            time.sleep(60)
+            response = requests.get(url, params=params)
+
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("Response") == "Error":
+            return []
+
+        history_data = data.get("Data", {}).get("Data", [])
+
+        candles = []
+        for item in history_data:
+            date = datetime.fromtimestamp(item["time"]).strftime('%Y-%m-%d')
+
+            if date < start_date:
+                continue
+
+            candles.append({
+                'date': date,
+                'open': round(float(item['open']), 8) if item['open'] else None,
+                'high': round(float(item['high']), 8) if item['high'] else None,
+                'low': round(float(item['low']), 8) if item['low'] else None,
+                'close': round(float(item['close']), 8) if item['close'] else None,
+                'volume': int(item['volumeto']) if item.get('volumeto') else 0,
+                'rsi': None,
+                'ema200_diff': None,
+                'ema120_diff': None,
+                'ema50_diff': None,
+                'ema20_diff': None,
+                'volume_ratio_90d': None,
+                'volume_ratio_alltime': None
+            })
+
+        return candles
+
+    except Exception as e:
+        print(f"❌ {symbol} 에러: {e}")
+        return []
 
 # ✅ 지표 계산 및 업데이트
 def calculate_and_update_indicators(history):
-    """최신 레코드에 RSI, EMA 계산"""
+    """최신 레코드에 RSI, EMA, 거래량비율 계산"""
     if len(history) == 0:
         return
 
     recent_history = history[-250:]
     closes = [h['close'] for h in recent_history if h['close'] is not None]
+    volumes = [h['volume'] for h in recent_history if h['volume'] is not None]
 
     if len(closes) < 14:
         return
@@ -211,12 +274,24 @@ def calculate_and_update_indicators(history):
     ema120_diff = round(((current_price - ema120) / ema120) * 100, 2) if ema120 else None
     ema200_diff = round(((current_price - ema200) / ema200) * 100, 2) if ema200 else None
 
+    # 거래량 비율
+    if len(volumes) > 0:
+        vol_max_90d = max(volumes[-90:]) if len(volumes) >= 90 else max(volumes)
+        vol_ratio_90d = round(volumes[-1] / vol_max_90d, 3) if vol_max_90d else None
+        vol_max_alltime = max(volumes)
+        vol_ratio_alltime = round(volumes[-1] / vol_max_alltime, 3) if vol_max_alltime else None
+    else:
+        vol_ratio_90d = None
+        vol_ratio_alltime = None
+
     # 최신 레코드 업데이트
     history[-1]['rsi'] = rsi
     history[-1]['ema20_diff'] = ema20_diff
     history[-1]['ema50_diff'] = ema50_diff
     history[-1]['ema120_diff'] = ema120_diff
     history[-1]['ema200_diff'] = ema200_diff
+    history[-1]['volume_ratio_90d'] = vol_ratio_90d
+    history[-1]['volume_ratio_alltime'] = vol_ratio_alltime
 
 # ✅ JSON 파일 저장
 def save_json_data(data):
@@ -226,20 +301,19 @@ def save_json_data(data):
 
 # ✅ 메인 실행
 def main():
-    print("🔄 코인게코 일일 업데이트 시작...")
+    print("🔄 CryptoCompare 일일 업데이트 시작...")
 
-    # 어제 날짜 계산 (코인은 24시간 거래)
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     print(f"📅 업데이트 날짜: {yesterday}\n")
 
-    # 1. CoinGecko API로 최신 상위 1000개 코인 가져오기
+    # 1. CryptoCompare API로 최신 상위 1000개 코인 가져오기
     live_tickers = fetch_top_coins()
     print(f"📋 최신 상위 코인: {len(live_tickers)}개")
 
     # 2. 기존 JSON 데이터 로드
     existing_data = load_existing_data()
     if not existing_data:
-        print("❌ 기존 데이터 없음 - rebuild_coingecko_history.py를 먼저 실행하세요")
+        print("❌ 기존 데이터 없음 - rebuild_cryptocompare_history.py를 먼저 실행하세요")
         return
 
     # 기존 코인 맵 생성
@@ -247,11 +321,10 @@ def main():
     existing_mcv_ids = set(existing_map.keys())
 
     # 3. 신규 코인 vs 기존 코인 분리
-    # 최신 상위 1000개 중에서 신규/기존 구분
     new_coins = [t for t in live_tickers if t['mcv_id'] not in existing_mcv_ids]
     existing_coins = [t for t in live_tickers if t['mcv_id'] in existing_mcv_ids]
 
-    # 기존 데이터 중 상위 1000위 밖으로 밀려난 코인들 (히스토리 유지)
+    # 순위권 밖 코인 (히스토리 유지)
     live_mcv_ids = {t['mcv_id'] for t in live_tickers}
     dropped_coins = [item for item in existing_data['data'] if item['mcv_id'] not in live_mcv_ids]
 
@@ -263,17 +336,15 @@ def main():
     updated_count = 0
     print("📊 기존 코인 업데이트 중...")
     for t in existing_coins:
-        coingecko_id = t.get('coingecko_id')
+        symbol = t.get('ticker')
         mcv_id = t['mcv_id']
 
         try:
-            # 최근 2일 데이터 가져오기
-            candles = fetch_coingecko_recent(coingecko_id, days=2)
+            candles = fetch_cryptocompare_recent(symbol, days=2)
 
             if len(candles) == 0:
                 continue
 
-            # 기존 히스토리에 추가
             coin_data = existing_map[mcv_id]
 
             # 중복 체크
@@ -290,10 +361,10 @@ def main():
                 print(f"   진행: {updated_count}/{len(existing_coins)}")
 
         except Exception as e:
-            print(f"❌ {coingecko_id} 업데이트 실패: {e}")
+            print(f"❌ {symbol} 업데이트 실패: {e}")
             continue
 
-        time.sleep(15)  # Rate limit 대응
+        time.sleep(1)
 
     print(f"✅ 기존 코인 업데이트 완료: {updated_count}개\n")
 
@@ -308,15 +379,14 @@ def main():
             process_new = new_coins
 
         for t in process_new:
-            coingecko_id = t.get('coingecko_id')
+            symbol = t.get('ticker')
             mcv_id = t['mcv_id']
-            ticker = t.get('ticker')
             name = t.get('name')
 
-            print(f"   🆕 {ticker} - 최근 365일 다운로드 중...", end=" ", flush=True)
+            print(f"   🆕 {symbol} - 2022-01-01부터 다운로드 중...", end=" ", flush=True)
 
             try:
-                candles = fetch_coingecko_full_history(coingecko_id, days=365)
+                candles = fetch_cryptocompare_full_history(symbol)
 
                 if len(candles) == 0:
                     print("❌ 데이터 없음")
@@ -330,16 +400,15 @@ def main():
                 # 데이터에 추가
                 existing_data['data'].append({
                     'mcv_id': mcv_id,
-                    'ticker': ticker,
+                    'ticker': symbol,
                     'name': name,
-                    'coingecko_id': coingecko_id,
                     'history': candles
                 })
 
-                time.sleep(20)
+                time.sleep(3)
 
             except Exception as e:
-                print(f"❌ {ticker} 다운로드 실패: {e}")
+                print(f"❌ {symbol} 다운로드 실패: {e}")
                 continue
 
         print(f"✅ 신규 코인 처리 완료: {len(process_new)}개\n")

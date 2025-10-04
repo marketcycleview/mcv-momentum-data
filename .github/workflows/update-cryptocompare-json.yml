@@ -1,4 +1,4 @@
-name: 📊 코인게코 일일 업데이트
+name: 📊 크립토컴페어 일일 업데이트
 
 on:
   schedule:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  update-coingecko:
+  update-cryptocompare:
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -29,51 +29,51 @@ jobs:
       - name: 📥 Download Latest Data from Release
         run: |
           echo "📥 기존 데이터 다운로드 중..."
-          mkdir -p src/data/momentum/coingecko
+          mkdir -p src/data/momentum/cryptocompare
 
-          # coingecko_historical_data.json 다운로드
-          curl -L -o src/data/momentum/coingecko/coingecko_historical_data.json \
-            "https://github.com/${{ github.repository }}/releases/download/momentum-data-v1/coingecko_historical_data.json" \
+          # cryptocompare_historical_data.json 다운로드
+          curl -L -o src/data/momentum/cryptocompare/cryptocompare_historical_data.json \
+            "https://github.com/${{ github.repository }}/releases/download/momentum-data-v1/cryptocompare_historical_data.json" \
             || echo "⚠️ 기존 히스토리 파일 없음 - 스크립트가 처리합니다"
 
-          # coingecko_tickers.json 다운로드
-          curl -L -o src/data/momentum/coingecko/coingecko_tickers.json \
-            "https://github.com/${{ github.repository }}/releases/download/momentum-data-v1/coingecko_tickers.json" \
+          # cryptocompare_tickers.json 다운로드
+          curl -L -o src/data/momentum/cryptocompare/cryptocompare_tickers.json \
+            "https://github.com/${{ github.repository }}/releases/download/momentum-data-v1/cryptocompare_tickers.json" \
             || echo "⚠️ 기존 티커 파일 없음"
 
-      - name: 🔄 Update CoinGecko Data
+      - name: 🔄 Update CryptoCompare Data
         run: |
-          python .github/scripts/update_coingecko_json.py
+          python .github/scripts/update_cryptocompare_json.py
 
       - name: 📊 Check Updated Files
         run: |
           echo "📁 Updated files:"
-          ls -lh src/data/momentum/coingecko/
+          ls -lh src/data/momentum/cryptocompare/
           echo ""
           echo "📈 File sizes:"
-          du -h src/data/momentum/coingecko/*
+          du -h src/data/momentum/cryptocompare/*
 
       - name: 📤 Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: momentum-data-v1
-          name: "CoinGecko Momentum Data"
+          name: "CryptoCompare Momentum Data"
           body: |
-            🪙 **코인게코 모멘텀 데이터** (자동 업데이트)
+            🪙 **크립토컴페어 모멘텀 데이터** (자동 업데이트)
 
             - **최종 업데이트**: ${{ github.event.repository.updated_at }}
-            - **코인 수**: 950개 (상위 시가총액)
-            - **데이터 소스**: CoinGecko API
+            - **코인 수**: 1000개 (상위 시가총액)
+            - **데이터 소스**: CryptoCompare API
 
             ## 📥 다운로드
-            - `coingecko_historical_data.json` - 전체 히스토리 데이터
-            - `coingecko_tickers.json` - 티커 메타데이터
+            - `cryptocompare_historical_data.json` - 전체 히스토리 데이터
+            - `cryptocompare_tickers.json` - 티커 메타데이터
 
             ## 🔄 자동 업데이트
             매일 02:00 UTC (한국시간 11:00) 자동 업데이트됩니다.
           files: |
-            src/data/momentum/coingecko/coingecko_historical_data.json
-            src/data/momentum/coingecko/coingecko_tickers.json
+            src/data/momentum/cryptocompare/cryptocompare_historical_data.json
+            src/data/momentum/cryptocompare/cryptocompare_tickers.json
           prerelease: false
           draft: false
         env:
@@ -81,6 +81,6 @@ jobs:
 
       - name: ✅ Complete
         run: |
-          echo "✅ 코인게코 데이터 업데이트 완료!"
+          echo "✅ 크립토컴페어 데이터 업데이트 완료!"
           echo "📅 다음 업데이트: 내일 02:00 UTC (한국시간 11:00)"
           echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/momentum-data-v1"
