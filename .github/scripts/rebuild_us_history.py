@@ -241,15 +241,15 @@ def main():
     # 1. 로컬 티커 리스트 가져오기
     tickers = load_local_tickers()
     print(f"📋 총 {len(tickers)}개 티커 처리 중...\n")
-    print(f"⚡ 병렬 처리: 20개 스레드 (예상 시간: 1-2시간)\n")
+    print(f"⚡ 병렬 처리: 10개 스레드 (예상 시간: 2-3시간)\n")
 
     all_data = []
     all_tickers = []
     failed = 0
     print_lock = Lock()
 
-    # 병렬 처리 (20개 스레드)
-    with ThreadPoolExecutor(max_workers=20) as executor:
+    # 병렬 처리 (10개 스레드 - Yahoo Finance rate limit 회피)
+    with ThreadPoolExecutor(max_workers=10) as executor:
         # 모든 작업을 제출
         future_to_ticker = {
             executor.submit(process_single_ticker, t, start_date, end_date, i+1, len(tickers)): t
