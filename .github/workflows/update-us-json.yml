@@ -1,0 +1,67 @@
+name: Update US Momentum Data (Daily)
+
+on:
+  schedule:
+    # 매일 미국 동부시간 장 마감 후 (01:00 UTC = 미국 21:00/22:00)
+    - cron: '0 1 * * *'
+  workflow_dispatch:  # 수동 실행 가능
+
+permissions:
+  contents: write
+
+jobs:
+  update-us-json:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2시간
+
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install yfinance requests pandas
+
+      - name: 📥 Download existing data from Release
+        run: |
+          mkdir -p src/data/momentum/us
+          curl -L -o src/data/momentum/us/us_historical_data.json \
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json || echo "⚠️ Release 파일 없음 (첫 실행)"
+
+      - name: 🔄 Update US historical data
+        run: python .github/scripts/update_us_json.py
+
+      - name: 📊 Check updated file
+        run: |
+          ls -lh src/data/momentum/us/
+          du -h src/data/momentum/us/us_historical_data.json
+
+      - name: 📤 Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0
+          name: US Stock Historical Data v1.0.0
+          body: |
+            🇺🇸 미국 주식/ETF 히스토리 데이터 (2022-01-01 ~ 현재)
+
+            **Last Updated:** $(date +'%Y-%m-%d %H:%M:%S UTC')
+            **Total Tickers:** ~2850
+
+            ## 다운로드 URL
+            ```
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_tickers.json
+            ```
+
+            📦 mcv-nextjs 프로젝트의 `src/data/momentum/us/` 폴더에 배치하세요.
+          files: |
+            src/data/momentum/us/us_historical_data.json
+            src/data/momentum/us/us_tickers.json
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
