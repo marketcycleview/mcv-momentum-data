@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir -p src/data/momentum/us
           curl -L -o src/data/momentum/us/us_historical_data.json \
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json || echo "⚠️ Release 파일 없음 (첫 실행)"
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/us-stocks-v1/us_historical_data.json || echo "⚠️ Release 파일 없음 (첫 실행)"
 
       - name: 🔄 Update US historical data
         run: python .github/scripts/update_us_json.py
@@ -44,7 +44,7 @@ jobs:
       - name: 📤 Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.0
+          tag_name: us-stocks-v1
           name: US Stock Historical Data v1.0.0
           body: |
             🇺🇸 미국 주식/ETF 히스토리 데이터 (2022-01-01 ~ 현재)
@@ -54,8 +54,8 @@ jobs:
 
             ## 다운로드 URL
             ```
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_tickers.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/us-stocks-v1/us_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/us-stocks-v1/us_tickers.json
             ```
 
             📦 mcv-nextjs 프로젝트의 `src/data/momentum/us/` 폴더에 배치하세요.

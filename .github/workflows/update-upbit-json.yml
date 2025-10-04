@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p src/data/momentum/upbit
           curl -L -o src/data/momentum/upbit/upbit_historical_data.json \
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_historical_data.json || echo "⚠️ Release 파일 없음 (첫 실행)"
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/upbit_historical_data.json || echo "⚠️ Release 파일 없음 (첫 실행)"
 
       - name: 🚀 Update Upbit JSON with latest data
         run: |
@@ -44,7 +44,7 @@ jobs:
       - name: 📤 Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.0
+          tag_name: upbit-data-v1
           name: Crypto & Stock Historical Data v1.0.0
           body: |
             📦 **Upbit & US Stock Historical Data**
@@ -55,14 +55,14 @@ jobs:
 
             ### Upbit (업비트 코인)
             ```
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_historical_data.json
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_tickers.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/upbit_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/upbit_tickers.json
             ```
 
             ### US Stock (미국 주식/ETF)
             ```
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json
-            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_tickers.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/us_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/upbit-data-v1/us_tickers.json
             ```
 
             📦 mcv-nextjs 프로젝트의 `src/data/momentum/` 폴더에 배치하세요.

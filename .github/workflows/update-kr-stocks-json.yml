@@ -33,12 +33,12 @@ jobs:
 
           # kr_stocks_historical_data.json 다운로드
           curl -L -o src/data/momentum/kr/kr_stocks_historical_data.json \
-            "https://github.com/${{ github.repository }}/releases/download/momentum-data-v1/kr_stocks_historical_data.json" \
+            "https://github.com/${{ github.repository }}/releases/download/kr-stocks-v1/kr_stocks_historical_data.json" \
             || echo "⚠️ 기존 히스토리 파일 없음 - 스크립트가 처리합니다"
 
           # kr_stocks_tickers.json 다운로드
           curl -L -o src/data/momentum/kr/kr_stocks_tickers.json \
-            "https://github.com/${{ github.repository }}/releases/download/momentum-data-v1/kr_stocks_tickers.json" \
+            "https://github.com/${{ github.repository }}/releases/download/kr-stocks-v1/kr_stocks_tickers.json" \
             || echo "⚠️ 기존 티커 파일 없음"
 
       - name: 🔄 Update Korean Stocks Data
@@ -56,7 +56,7 @@ jobs:
       - name: 📤 Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: momentum-data-v1
+          tag_name: kr-stocks-v1
           name: "Korean Stocks Momentum Data"
           body: |
             🇰🇷 **한국 주식 모멘텀 데이터** (자동 업데이트)
@@ -83,4 +83,4 @@ jobs:
         run: |
           echo "✅ 한국 주식 데이터 업데이트 완료!"
           echo "📅 다음 업데이트: 내일 01:00 UTC (한국시간 10:00)"
-          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/momentum-data-v1"
+          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/kr-stocks-v1"
