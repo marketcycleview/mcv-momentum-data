@@ -61,23 +61,64 @@ def calculate_ema(prices, period):
         ema = price * k + ema * (1 - k)
     return round(ema, 8)
 
-# ✅ 로컬 티커 파일 로드
-def load_local_tickers():
-    if not os.path.exists(TICKER_FILE):
-        print(f"⚠️ 티커 파일 없음: {TICKER_FILE}")
-        return []
+# ✅ CoinGecko API에서 최신 상위 1000개 코인 가져오기
+def fetch_top_coins():
+    """CoinGecko API로 시가총액 상위 1000개 코인 목록 가져오기"""
+    print("📡 CoinGecko API로 최신 상위 1000개 코인 목록 가져오는 중...")
 
-    with open(TICKER_FILE, 'r', encoding='utf-8') as f:
-        tickers = json.load(f)
+    all_coins = []
+    for page in range(1, 5):  # 250 * 4 = 1000개
+        print(f"   페이지 {page}/4 수집 중...", end=" ", flush=True)
 
-    # 중복 제거
-    unique_tickers = {}
-    for t in tickers:
-        mcv_id = t.get('mcv_id')
-        if mcv_id and mcv_id not in unique_tickers:
-            unique_tickers[mcv_id] = t
+        params = {
+            "vs_currency": "usd",
+            "order": "market_cap_desc",
+            "per_page": 250,
+            "page": page,
+            "sparkline": False
+        }
 
-    return list(unique_tickers.values())
+        try:
+            response = requests.get(f"{COINGECKO_API_BASE}/coins/markets", params=params)
+
+            if response.status_code == 429:
+                print("⚠️ Rate limit - 60초 대기...")
+                time.sleep(60)
+                response = requests.get(f"{COINGECKO_API_BASE}/coins/markets", params=params)
+
+            response.raise_for_status()
+            coins = response.json()
+            all_coins.extend(coins)
+            print(f"✅ {len(coins)}개")
+
+            if page < 4:
+                time.sleep(2)  # Rate limit 대응
+
+        except Exception as e:
+            print(f"❌ 페이지 {page} 수집 실패: {e}")
+            continue
+
+    # 티커 데이터 정규화
+    tickers = []
+    for coin in all_coins:
+        ticker = coin["symbol"].upper()
+        name = coin["name"]
+        coingecko_id = coin["id"]
+        common_ticker = f"{ticker}-USD"
+        mcv_id = f"{common_ticker}-COINGECKO"
+
+        tickers.append({
+            "ticker": ticker,
+            "name": name,
+            "coingecko_id": coingecko_id,
+            "common_ticker": common_ticker,
+            "mcv_id": mcv_id,
+            "marketcap": coin.get("market_cap"),
+            "rank": coin.get("market_cap_rank")
+        })
+
+    print(f"✅ 총 {len(tickers)}개 코인 목록 수집 완료\n")
+    return tickers
 
 # ✅ 기존 JSON 데이터 로드
 def load_existing_data():
@@ -191,11 +232,9 @@ def main():
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
     print(f"📅 업데이트 날짜: {yesterday}\n")
 
-    # 1. 티커 소스 로드
-    local_tickers = load_local_tickers()
-    print(f"📋 로컬 티커: {len(local_tickers)}개")
-
-    all_tickers = local_tickers
+    # 1. CoinGecko API로 최신 상위 1000개 코인 가져오기
+    live_tickers = fetch_top_coins()
+    print(f"📋 최신 상위 코인: {len(live_tickers)}개")
 
     # 2. 기존 JSON 데이터 로드
     existing_data = load_existing_data()
@@ -208,11 +247,17 @@ def main():
     existing_mcv_ids = set(existing_map.keys())
 
     # 3. 신규 코인 vs 기존 코인 분리
-    new_coins = [t for t in all_tickers if t['mcv_id'] not in existing_mcv_ids]
-    existing_coins = [t for t in all_tickers if t['mcv_id'] in existing_mcv_ids]
+    # 최신 상위 1000개 중에서 신규/기존 구분
+    new_coins = [t for t in live_tickers if t['mcv_id'] not in existing_mcv_ids]
+    existing_coins = [t for t in live_tickers if t['mcv_id'] in existing_mcv_ids]
 
-    print(f"🆕 신규 코인: {len(new_coins)}개")
-    print(f"🔄 기존 코인: {len(existing_coins)}개\n")
+    # 기존 데이터 중 상위 1000위 밖으로 밀려난 코인들 (히스토리 유지)
+    live_mcv_ids = {t['mcv_id'] for t in live_tickers}
+    dropped_coins = [item for item in existing_data['data'] if item['mcv_id'] not in live_mcv_ids]
+
+    print(f"🆕 신규 진입 코인: {len(new_coins)}개")
+    print(f"🔄 기존 상위 코인: {len(existing_coins)}개")
+    print(f"📉 순위권 밖 코인: {len(dropped_coins)}개 (히스토리 유지)\n")
 
     # 4. 기존 코인 업데이트 (최근 2일 데이터 추가)
     updated_count = 0
