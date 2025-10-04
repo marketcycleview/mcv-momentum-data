@@ -1,0 +1,67 @@
+name: Rebuild Upbit Historical Data
+
+on:
+  workflow_dispatch: # 수동 실행만 가능
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild-upbit-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # 2시간
+
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install requests python-dotenv pandas
+
+      - name: 🚀 Rebuild Upbit historical data
+        run: |
+          python .github/scripts/rebuild_upbit_history.py
+
+      - name: 📊 Check output file
+        run: |
+          ls -lh src/data/momentum/upbit/
+          du -h src/data/momentum/upbit/upbit_historical_data.json
+
+      - name: 📤 Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0
+          name: Crypto & Stock Historical Data v1.0.0
+          body: |
+            📦 **Upbit & US Stock Historical Data**
+
+            **Generated:** ${{ github.run_id }}
+            **Date:** $(date +%Y-%m-%d)
+
+            ## 다운로드 URL
+
+            ### Upbit (업비트 코인)
+            ```
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_tickers.json
+            ```
+
+            ### US Stock (미국 주식/ETF)
+            ```
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_tickers.json
+            ```
+
+            📦 mcv-nextjs 프로젝트의 `src/data/momentum/` 폴더에 배치하세요.
+          files: |
+            src/data/momentum/upbit/upbit_historical_data.json
+            src/data/momentum/upbit/upbit_tickers.json
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

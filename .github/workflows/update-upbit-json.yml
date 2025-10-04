@@ -1,0 +1,74 @@
+name: Update Upbit Momentum Data (Daily)
+
+on:
+  schedule:
+    - cron: "10 0 * * *" # 매일 00:10 UTC (한국 09:10)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-upbit-json:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 📦 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install requests python-dotenv pandas
+
+      - name: 📥 Download existing data from Release
+        run: |
+          mkdir -p src/data/momentum/upbit
+          curl -L -o src/data/momentum/upbit/upbit_historical_data.json \
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_historical_data.json || echo "⚠️ Release 파일 없음 (첫 실행)"
+
+      - name: 🚀 Update Upbit JSON with latest data
+        run: |
+          python .github/scripts/update_upbit_json.py
+
+      - name: 📊 Check updated file
+        run: |
+          ls -lh src/data/momentum/upbit/
+          du -h src/data/momentum/upbit/upbit_historical_data.json
+
+      - name: 📤 Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0
+          name: Crypto & Stock Historical Data v1.0.0
+          body: |
+            📦 **Upbit & US Stock Historical Data**
+
+            **Last Updated:** $(date +'%Y-%m-%d %H:%M:%S UTC')
+
+            ## 다운로드 URL
+
+            ### Upbit (업비트 코인)
+            ```
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/upbit_tickers.json
+            ```
+
+            ### US Stock (미국 주식/ETF)
+            ```
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_historical_data.json
+            https://github.com/marketcycleview/mcv-momentum-data/releases/download/v1.0.0/us_tickers.json
+            ```
+
+            📦 mcv-nextjs 프로젝트의 `src/data/momentum/` 폴더에 배치하세요.
+          files: |
+            src/data/momentum/upbit/upbit_historical_data.json
+            src/data/momentum/upbit/upbit_tickers.json
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
