@@ -1,4 +1,4 @@
-name: Rebuild Upbit Historical Data
+name: 🔄 업비트 전체 재구축 (2022-01-01~)
 
 on:
   workflow_dispatch: # 수동 실행만 가능
