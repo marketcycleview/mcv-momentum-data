@@ -1,0 +1,69 @@
+name: 🔄 코인게코 전체 재구축 (최근 365일)
+
+on:
+  workflow_dispatch:  # 수동 실행 전용
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild-coingecko-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240  # 4시간 (950개 코인, Rate limit 대응)
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Dependencies
+        run: |
+          pip install requests
+
+      - name: 🚀 Rebuild CoinGecko History
+        run: |
+          python .github/scripts/rebuild_coingecko_history.py
+
+      - name: 📊 Check File Size
+        run: |
+          echo "📁 Generated files:"
+          ls -lh src/data/momentum/coingecko/
+          echo ""
+          echo "📈 File details:"
+          du -h src/data/momentum/coingecko/*
+
+      - name: 📤 Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: momentum-data-v1
+          name: "CoinGecko Momentum Data"
+          body: |
+            🪙 **코인게코 모멘텀 데이터**
+
+            - **기간**: 최근 365일
+            - **코인 수**: 950개 (상위 시가총액)
+            - **데이터 소스**: CoinGecko API
+            - **생성 시각**: ${{ github.event.repository.updated_at }}
+
+            ## 📥 다운로드
+            - `coingecko_historical_data.json` - 전체 히스토리 데이터
+            - `coingecko_tickers.json` - 티커 메타데이터
+
+            ## 🔄 자동 업데이트
+            매일 02:00 UTC (한국시간 11:00) 자동 업데이트됩니다.
+          files: |
+            src/data/momentum/coingecko/coingecko_historical_data.json
+            src/data/momentum/coingecko/coingecko_tickers.json
+          prerelease: false
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ✅ Complete
+        run: |
+          echo "✅ 코인게코 히스토리 재구축 완료!"
+          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/momentum-data-v1"
