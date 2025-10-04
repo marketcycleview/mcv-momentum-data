@@ -101,16 +101,12 @@ def fetch_yahoo_history(ticker, start_date, end_date):
     Yahoo Finance에서 OHLCV 데이터 가져오기
     """
     import random
-    import requests
     try:
         # Random sleep to avoid rate limiting (3-5초)
         time.sleep(random.uniform(3.0, 5.0))
 
-        # User-Agent 설정으로 차단 우회
-        session = requests.Session()
-        session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-
-        yf_ticker = yf.Ticker(ticker, session=session)
+        # yfinance가 자동으로 세션 관리 (curl_cffi 사용)
+        yf_ticker = yf.Ticker(ticker)
         hist = yf_ticker.history(start=start_date, end=end_date)
 
         if hist.empty:
