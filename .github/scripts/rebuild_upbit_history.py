@@ -39,7 +39,7 @@ def fetch_single_page_candles(market, to_date, count=200):
     }
     res = requests.get(url, params=params, timeout=10)
     res.raise_for_status()
-    time.sleep(0.1)  # API rate limit
+    time.sleep(0.15)  # API rate limit (증가)
     return res.json()
 
 # ✅ 특정 기간의 전체 캔들 데이터 가져오기 (페이징 처리)
@@ -169,14 +169,14 @@ def main():
 
     # 1. 마켓 리스트 가져오기
     markets = get_krw_markets()
-    print(f"📋 총 {len(markets)}개 마켓 병렬 처리 중 (max_workers=10)...")
+    print(f"📋 총 {len(markets)}개 마켓 병렬 처리 중 (max_workers=3)...")
 
     # 2. 병렬 처리 (ThreadPoolExecutor, 재시도 포함)
     process_args = [(m, start_date, end_date) for m in markets]
     results = parallel_process(
         func=process_single_market,
         items=process_args,
-        max_workers=10,
+        max_workers=3,  # Rate limit 회피
         desc="업비트 티커 재구축"
     )
 

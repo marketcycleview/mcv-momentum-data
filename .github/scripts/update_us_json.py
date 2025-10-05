@@ -104,7 +104,7 @@ def fetch_yahoo_recent(ticker, start_date, end_date):
             'volume_ratio_alltime': None
         })
 
-    time.sleep(0.05)  # Rate limit
+    time.sleep(0.15)  # Rate limit (증가)
     return candles
 
 # ✅ 전체 히스토리 가져오기 (신규 티커용)
@@ -230,12 +230,12 @@ def main():
     print(f"🔄 기존 티커: {len(existing_tickers)}개\n")
 
     # 4. 기존 티커 업데이트 (병렬 처리 + upsert)
-    print(f"📊 기존 티커 업데이트 중 (max_workers=10)...")
+    print(f"📊 기존 티커 업데이트 중 (max_workers=5)...")
     process_args = [(t, existing_map[t['mcv_id']].copy(), yesterday) for t in existing_tickers]
     results = parallel_process(
         func=process_existing_ticker,
         items=process_args,
-        max_workers=10,
+        max_workers=5,  # Rate limit 회피
         desc="기존 티커 업데이트"
     )
 
@@ -254,11 +254,11 @@ def main():
         else:
             process_new = new_tickers
 
-        print(f"🆕 신규 티커 처리 중 (max_workers=10)...")
+        print(f"🆕 신규 티커 처리 중 (max_workers=5)...")
         new_results = parallel_process(
             func=process_new_ticker,
             items=process_new,
-            max_workers=10,
+            max_workers=5,  # Rate limit 회피
             desc="신규 티커 다운로드"
         )
 

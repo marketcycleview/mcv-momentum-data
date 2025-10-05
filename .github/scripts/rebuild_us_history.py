@@ -96,7 +96,7 @@ def fetch_yahoo_history(ticker, start_date, end_date):
             'volume_ratio_alltime': None
         })
 
-    time.sleep(0.05)  # Rate limit
+    time.sleep(0.15)  # Rate limit (증가)
     return candles
 
 # ✅ 단일 티커 처리 함수 (병렬화용)

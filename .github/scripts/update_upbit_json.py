@@ -37,7 +37,7 @@ def fetch_yesterday_candle(market):
     params = {"market": market, "count": 1, "to": kst_yesterday_end}
     res = requests.get(url, params=params)
     res.raise_for_status()
-    time.sleep(0.05)  # API rate limit
+    time.sleep(0.15)  # API rate limit (증가)
     return res.json()[0]
 
 # ✅ JSON 파일 로드
@@ -154,14 +154,14 @@ def main():
     yesterday_date = (datetime.utcnow() + timedelta(hours=9) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     print(f"📅 업데이트 날짜: {yesterday_date}")
-    print(f"📋 총 {len(markets)}개 마켓 병렬 처리 중 (max_workers=10)...")
+    print(f"📋 총 {len(markets)}개 마켓 병렬 처리 중 (max_workers=3)...")
 
     # 3. 병렬 처리 (ThreadPoolExecutor, 재시도 포함)
     process_args = [(m, ticker_map, yesterday_date) for m in markets]
     results = parallel_process(
         func=process_single_ticker,
         items=process_args,
-        max_workers=10,
+        max_workers=3,  # Rate limit 회피
         desc="업비트 티커 업데이트"
     )
 
