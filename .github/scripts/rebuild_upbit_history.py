@@ -189,9 +189,17 @@ def main():
         all_tickers.append(ticker_info)
 
     # JSON 저장
+    # ✅ cutoff_date를 실제 데이터의 최신 날짜로 계산
+    all_dates = []
+    for ticker_data in all_data:
+        for history_entry in ticker_data['history']:
+            all_dates.append(history_entry['date'])
+
+    cutoff_date = max(all_dates) if all_dates else start_date
+
     json_data = {
         'generated_at': datetime.now().isoformat(),
-        'cutoff_date': start_date,
+        'cutoff_date': cutoff_date,
         'total_tickers': len(all_data),
         'total_records': sum(len(t['history']) for t in all_data),
         'data': all_data

@@ -306,6 +306,15 @@ def main():
     existing_data['total_tickers'] = len(existing_data['data'])
     existing_data['total_records'] = sum(len(t['history']) for t in existing_data['data'])
 
+    # ✅ cutoff_date를 실제 데이터의 최신 날짜로 업데이트
+    all_dates = []
+    for ticker_data in existing_data['data']:
+        for history_entry in ticker_data['history']:
+            all_dates.append(history_entry['date'])
+    if all_dates:
+        existing_data['cutoff_date'] = max(all_dates)
+        print(f"📅 cutoff_date 업데이트: {existing_data['cutoff_date']}")
+
     # 7. JSON 저장
     save_json_data(existing_data)
 

@@ -183,6 +183,15 @@ def main():
     json_data['total_records'] = sum(len(t['history']) for t in ticker_map.values())
     json_data['generated_at'] = datetime.now().isoformat()
 
+    # ✅ cutoff_date를 실제 데이터의 최신 날짜로 업데이트
+    all_dates = []
+    for ticker_data in json_data['data']:
+        for history_entry in ticker_data['history']:
+            all_dates.append(history_entry['date'])
+    if all_dates:
+        json_data['cutoff_date'] = max(all_dates)
+        print(f"📅 cutoff_date 업데이트: {json_data['cutoff_date']}")
+
     save_json_data(json_data)
 
     # 4. 티커 목록 저장
