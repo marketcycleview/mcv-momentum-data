@@ -2,7 +2,10 @@
 """
 미국 주식/ETF 전체 히스토리 재구축 (2022-01-01부터)
 Yahoo Finance에서 데이터 가져와서 JSON 생성
-병렬 처리로 5시간 → 1-2시간으로 단축
+
+✨ 개선사항:
+- 병렬처리: ThreadPoolExecutor로 10개 동시 실행 (기존)
+- 재시도: API 실패 시 4회 재시도 (지수 백오프) - 신규
 """
 
 import os
@@ -12,6 +15,7 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 import yfinance as yf
+from utils_common import retry_on_failure, calculate_and_update_indicators
 
 # 경로 설정
 JSON_FILE_PATH = "src/data/momentum/us/us_historical_data.json"
@@ -39,43 +43,6 @@ TICKER_FILES = [
     "src/data/tickers/us/forex/forex_us_with_mcv_id.json",
 ]
 
-# ✅ RSI 계산 (Wilder 방식)
-def calculate_rsi(prices, period=14):
-    if len(prices) < period + 1:
-        return None
-
-    gains = []
-    losses = []
-    for i in range(1, period + 1):
-        change = prices[i] - prices[i - 1]
-        gains.append(max(change, 0))
-        losses.append(abs(min(change, 0)))
-
-    avg_gain = sum(gains) / period
-    avg_loss = sum(losses) / period
-
-    for i in range(period + 1, len(prices)):
-        change = prices[i] - prices[i - 1]
-        gain = max(change, 0)
-        loss = abs(min(change, 0))
-        avg_gain = (avg_gain * (period - 1) + gain) / period
-        avg_loss = (avg_loss * (period - 1) + loss) / period
-
-    if avg_loss == 0:
-        return 100.0
-    rs = avg_gain / avg_loss
-    return round(100 - (100 / (1 + rs)), 2)
-
-# ✅ EMA 계산
-def calculate_ema(prices, period):
-    if len(prices) < 1:
-        return None
-    k = 2 / (period + 1)
-    ema = prices[0]
-    for price in prices[1:]:
-        ema = price * k + ema * (1 - k)
-    return round(ema, 8)
-
 # ✅ 로컬 티커 파일 로드
 def load_local_tickers():
     all_tickers = []
@@ -99,49 +66,38 @@ def load_local_tickers():
     return list(unique_tickers.values())
 
 # ✅ Yahoo Finance에서 히스토리 가져오기 (병렬 처리용, 재시도 로직 포함)
-def fetch_yahoo_history(ticker, start_date, end_date, retry_count=0):
+@retry_on_failure(max_retries=4)
+def fetch_yahoo_history(ticker, start_date, end_date):
     """
-    Yahoo Finance에서 OHLCV 데이터 가져오기
-    실패시 최대 2번 재시도 (3초 간격)
+    Yahoo Finance에서 OHLCV 데이터 가져오기 (재시도 포함)
     """
-    try:
-        # yfinance가 자동으로 세션 관리 (curl_cffi 사용)
-        yf_ticker = yf.Ticker(ticker)
-        hist = yf_ticker.history(start=start_date, end=end_date)
+    # yfinance가 자동으로 세션 관리 (curl_cffi 사용)
+    yf_ticker = yf.Ticker(ticker)
+    hist = yf_ticker.history(start=start_date, end=end_date)
 
-        if hist.empty:
-            # 재시도 (rate limit 회피)
-            if retry_count < 2:
-                time.sleep(3)
-                return fetch_yahoo_history(ticker, start_date, end_date, retry_count + 1)
-            return []
-
-        candles = []
-        for date, row in hist.iterrows():
-            candles.append({
-                'date': date.strftime('%Y-%m-%d'),
-                'open': round(float(row['Open']), 2) if row['Open'] else None,
-                'high': round(float(row['High']), 2) if row['High'] else None,
-                'low': round(float(row['Low']), 2) if row['Low'] else None,
-                'close': round(float(row['Close']), 2) if row['Close'] else None,
-                'volume': int(row['Volume']) if row['Volume'] else 0,
-                'rsi': None,
-                'ema200_diff': None,
-                'ema120_diff': None,
-                'ema50_diff': None,
-                'ema20_diff': None,
-                'volume_ratio_90d': None,
-                'volume_ratio_alltime': None
-            })
-
-        return candles
-
-    except Exception as e:
-        # 재시도 (rate limit 회피)
-        if retry_count < 2:
-            time.sleep(3)
-            return fetch_yahoo_history(ticker, start_date, end_date, retry_count + 1)
+    if hist.empty:
         return []
+
+    candles = []
+    for date, row in hist.iterrows():
+        candles.append({
+            'date': date.strftime('%Y-%m-%d'),
+            'open': round(float(row['Open']), 2) if row['Open'] else None,
+            'high': round(float(row['High']), 2) if row['High'] else None,
+            'low': round(float(row['Low']), 2) if row['Low'] else None,
+            'close': round(float(row['Close']), 2) if row['Close'] else None,
+            'volume': int(row['Volume']) if row['Volume'] else 0,
+            'rsi': None,
+            'ema200_diff': None,
+            'ema120_diff': None,
+            'ema50_diff': None,
+            'ema20_diff': None,
+            'volume_ratio_90d': None,
+            'volume_ratio_alltime': None
+        })
+
+    time.sleep(0.05)  # Rate limit
+    return candles
 
 # ✅ 단일 티커 처리 함수 (병렬화용)
 def process_single_ticker(t, start_date, end_date, index, total):
@@ -163,47 +119,10 @@ def process_single_ticker(t, start_date, end_date, index, total):
         # 히스토리 구축
         history = candles
 
-        # 최근 250일 데이터로 지표 계산
-        recent_history = history[-250:]
-        closes = [h['close'] for h in recent_history if h['close'] is not None]
-        volumes = [h['volume'] for h in recent_history if h['volume'] is not None]
-
-        if len(closes) < 14:
-            return None, f"⚠️ [{index}/{total}] {ticker} 데이터 부족"
-
-        # RSI 계산
-        rsi = calculate_rsi(closes)
-
-        # EMA 계산
-        ema20 = calculate_ema(closes, 20) if len(closes) >= 20 else None
-        ema50 = calculate_ema(closes, 50) if len(closes) >= 50 else None
-        ema120 = calculate_ema(closes, 120) if len(closes) >= 120 else None
-        ema200 = calculate_ema(closes, 200) if len(closes) >= 200 else None
-
-        current_price = closes[-1]
-        ema20_diff = round(((current_price - ema20) / ema20) * 100, 2) if ema20 else None
-        ema50_diff = round(((current_price - ema50) / ema50) * 100, 2) if ema50 else None
-        ema120_diff = round(((current_price - ema120) / ema120) * 100, 2) if ema120 else None
-        ema200_diff = round(((current_price - ema200) / ema200) * 100, 2) if ema200 else None
-
-        # 거래량 비율
-        if len(volumes) > 0:
-            vol_max_90d = max(volumes[-90:]) if len(volumes) >= 90 else max(volumes)
-            vol_ratio_90d = round(volumes[-1] / vol_max_90d, 3) if vol_max_90d else None
-            vol_max_alltime = max(volumes)
-            vol_ratio_alltime = round(volumes[-1] / vol_max_alltime, 3) if vol_max_alltime else None
-        else:
-            vol_ratio_90d = None
-            vol_ratio_alltime = None
-
-        # 최신 레코드에 지표 업데이트
-        history[-1]['rsi'] = rsi
-        history[-1]['ema20_diff'] = ema20_diff
-        history[-1]['ema50_diff'] = ema50_diff
-        history[-1]['ema120_diff'] = ema120_diff
-        history[-1]['ema200_diff'] = ema200_diff
-        history[-1]['volume_ratio_90d'] = vol_ratio_90d
-        history[-1]['volume_ratio_alltime'] = vol_ratio_alltime
+        # 지표 계산 (utils_common 사용)
+        if len(candles) > 0:
+            indicators = calculate_and_update_indicators(candles)
+            candles[-1].update(indicators)
 
         return {
             'ticker_data': {
