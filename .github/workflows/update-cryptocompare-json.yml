@@ -84,3 +84,8 @@ jobs:
           echo "✅ 크립토컴페어 데이터 업데이트 완료!"
           echo "📅 다음 업데이트: 내일 02:00 UTC (한국시간 11:00)"
           echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/crypto-data-v1"
+
+      - name: 🔄 Trigger Vercel deployment
+        run: |
+          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_CRYPTO }}"
+        continue-on-error: true

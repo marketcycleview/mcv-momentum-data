@@ -84,3 +84,8 @@ jobs:
           echo "✅ 한국 주식 데이터 업데이트 완료!"
           echo "📅 다음 업데이트: 내일 01:00 UTC (한국시간 10:00)"
           echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/kr-stocks-v1"
+
+      - name: 🔄 Trigger Vercel deployment
+        run: |
+          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_KR }}"
+        continue-on-error: true

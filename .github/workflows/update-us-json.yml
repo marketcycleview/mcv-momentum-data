@@ -65,3 +65,8 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔄 Trigger Vercel deployment
+        run: |
+          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_US }}"
+        continue-on-error: true
